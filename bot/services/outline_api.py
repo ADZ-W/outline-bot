@@ -1,4 +1,4 @@
-"""HTTP client for Outline Server REST API."""
+"""HTTP client for Outline Access Keys Management API."""
 
 from __future__ import annotations
 
@@ -16,7 +16,11 @@ class OutlineAPIError(RuntimeError):
 
 
 class OutlineAPI:
-    """Outline API client with retries and typed methods."""
+    """Outline API client with retries and typed methods.
+
+    Expected secret URL format from Outline Manager:
+    `https://<api_key>@<host>:<port>/<cert-sha256>`
+    """
 
     def __init__(self, api_url: str, timeout: int = 15) -> None:
         self.api_url = api_url.rstrip("/")
@@ -24,6 +28,8 @@ class OutlineAPI:
         self.session = requests.Session()
         retries = Retry(
             total=3,
+            connect=3,
+            read=3,
             backoff_factor=0.5,
             status_forcelist=[429, 500, 502, 503, 504],
             allowed_methods=["GET", "POST", "PUT", "DELETE"],
@@ -35,13 +41,14 @@ class OutlineAPI:
     def _request(self, method: str, path: str, **kwargs: Any) -> dict[str, Any]:
         url = f"{self.api_url}{path}"
         try:
-            response = self.session.request(method, url, timeout=self.timeout, **kwargs)
+            response = self.session.request(method=method, url=url, timeout=self.timeout, **kwargs)
             response.raise_for_status()
         except requests.RequestException as exc:
             raise OutlineAPIError(f"Outline API request failed: {exc}") from exc
 
         if not response.content:
             return {}
+
         try:
             return response.json()
         except ValueError as exc:
@@ -49,16 +56,16 @@ class OutlineAPI:
 
     def list_keys(self) -> list[OutlineKey]:
         payload = self._request("GET", "/access-keys")
-        keys = payload.get("accessKeys", [])
-        return [OutlineKey.from_api(item) for item in keys]
+        keys_payload = payload.get("accessKeys", [])
+        return [OutlineKey.from_api(item) for item in keys_payload]
 
     def create_key(self, name: str | None = None) -> OutlineKey:
         payload = self._request("POST", "/access-keys")
-        key_id = str(payload.get("id"))
+        key = OutlineKey.from_api(payload)
         if name:
-            self.rename_key(key_id, name)
-            payload["name"] = name
-        return OutlineKey.from_api(payload)
+            self.rename_key(key.id, name)
+            key.name = name
+        return key
 
     def delete_key(self, key_id: str) -> None:
         self._request("DELETE", f"/access-keys/{key_id}")
@@ -67,11 +74,17 @@ class OutlineAPI:
         self._request("PUT", f"/access-keys/{key_id}/name", json={"name": name})
 
     def set_data_limit(self, key_id: str, bytes_limit: int) -> None:
-        self._request("PUT", f"/access-keys/{key_id}/data-limit", json={"limit": {"bytes": bytes_limit}})
+        self._request(
+            "PUT",
+            f"/access-keys/{key_id}/data-limit",
+            json={"limit": {"bytes": bytes_limit}},
+        )
 
     def remove_data_limit(self, key_id: str) -> None:
         self._request("DELETE", f"/access-keys/{key_id}/data-limit")
 
     def get_key_info(self, key_id: str) -> OutlineKey:
-        payload = self._request("GET", f"/access-keys/{key_id}")
-        return OutlineKey.from_api(payload)
+        for key in self.list_keys():
+            if key.id == str(key_id):
+                return key
+        raise OutlineAPIError(f"Access key {key_id} not found")

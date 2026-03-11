@@ -8,10 +8,12 @@ from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 
 from bot.config import load_settings
-from bot.handlers import router
+from bot.handlers import get_root_router
 from bot.logging_config import configure_logging
+from bot.middlewares.admin import AdminOnlyMiddleware
 from bot.services.database import ServerRepository
 from bot.services.encryption import EncryptionService
+from bot.services.outline_service import OutlineService
 
 
 async def run() -> None:
@@ -24,11 +26,16 @@ async def run() -> None:
 
     repo = ServerRepository(settings.database_path)
     encryption = EncryptionService(settings.fernet_key)
+    outline = OutlineService(repo=repo, encryption=encryption)
 
-    dp.include_router(router)
+    root_router = get_root_router()
+    root_router.message.middleware(AdminOnlyMiddleware(settings.admin_user_id))
+    root_router.callback_query.middleware(AdminOnlyMiddleware(settings.admin_user_id))
+
+    dp.include_router(root_router)
     dp["repo"] = repo
     dp["encryption"] = encryption
-    dp["admin_user_id"] = settings.admin_user_id
+    dp["outline"] = outline
 
     await dp.start_polling(bot)
 

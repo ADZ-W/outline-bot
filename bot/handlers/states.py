@@ -1,4 +1,4 @@
-"""FSM states for multistep operations."""
+"""FSM states."""
 
 from aiogram.fsm.state import State, StatesGroup
 

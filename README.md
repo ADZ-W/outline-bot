@@ -1,46 +1,54 @@
 # Outline Bot
 
-Production-oriented Telegram bot for managing multiple Outline VPN servers.
+Telegram-бот для управления несколькими Outline VPN серверами (single-admin).
 
-## 1) Project architecture
+## 1) Архитектура проекта
 
 ```text
 bot/
-  main.py                 # entrypoint (DI wiring, polling)
-  config.py               # env config loader
-  logging_config.py       # logging setup
+  main.py                    # entrypoint, DI, middleware, polling
+  config.py                  # env-конфиг
+  logging_config.py          # logging
   handlers/
-    main.py               # telegram handlers + FSM flows
-    states.py             # aiogram FSM states
+    __init__.py              # сборка root router
+    common.py                # /start, main, noop
+    servers.py               # сценарии управления серверами
+    keys.py                  # сценарии управления ключами
+    states.py                # FSM состояния
   keyboards/
-    inline.py             # inline keyboard builders
+    main_menu.py             # главное меню
+    servers.py               # меню серверов
+    keys.py                  # меню ключей
+  middlewares/
+    admin.py                 # single-admin guard
   services/
-    database.py           # SQLite repository
-    encryption.py         # Fernet encryption service
-    models.py             # dataclasses
-    outline_api.py        # Outline REST API client
+    database.py              # SQLite repository
+    encryption.py            # Fernet encryption service
+    outline_api.py           # Outline Access Keys Management API client
+    outline_service.py       # получение клиента по server_id
+    models.py                # dataclasses
+  utils/
+    formatting.py            # форматирование байт
 ```
 
-Architecture principles:
-- **Handlers** manage Telegram interaction and FSM only.
-- **Services** encapsulate persistence, encryption, and external API logic.
-- **Keyboards** isolate UI markup generation.
-- **Dependency injection** through aiogram dispatcher context (`repo`, `encryption`, `admin_user_id`).
+## 2) Database model
 
-## 2) Database models
-
-SQLite table `servers`:
+Таблица `servers`:
 - `id INTEGER PRIMARY KEY AUTOINCREMENT`
 - `name TEXT NOT NULL`
 - `api_url TEXT NOT NULL`
 - `api_secret_encrypted TEXT NOT NULL`
 - `created_at TEXT NOT NULL`
 
-`ServerRepository` implements CRUD operations and DB bootstrap at startup.
+## 3) Outline API client (официальный Access Keys Management API)
 
-## 3) Outline API client
+Источник: официальная документация Outline Shadowbox Access Keys API:
+- `/access-keys` (GET/POST)
+- `/access-keys/{id}` (DELETE)
+- `/access-keys/{id}/name` (PUT)
+- `/access-keys/{id}/data-limit` (PUT/DELETE)
 
-`OutlineAPI` service methods:
+Реализованные методы:
 - `list_keys()`
 - `create_key()`
 - `delete_key()`
@@ -49,30 +57,23 @@ SQLite table `servers`:
 - `remove_data_limit()`
 - `get_key_info()`
 
-Implementation details:
-- Uses `requests.Session`.
-- Retries with exponential backoff (`urllib3.Retry`) for transient errors.
-- Raises custom `OutlineAPIError` on request/JSON errors.
-
 ## 4) Telegram handlers
 
-Implemented in `bot/handlers/main.py` with aiogram 3.x:
-- Single-admin access control using `ADMIN_USER_ID`.
-- Server management: list/add/rename/delete.
-- Server menu and key menu workflows.
-- Key operations: create/list/paginated view/open/show/rename/set/remove limit/delete.
-- FSM multi-step flows for adding/renaming entities and setting limits.
-- Inline keyboard-only UI.
+- Полный inline UI.
+- FSM для multi-step действий.
+- Single-admin доступ через middleware и `ADMIN_USER_ID`.
+- Управление серверами: list/add/rename/delete.
+- Управление ключами: create/list (pagination 10)/open/show/rename/set-limit/remove-limit/delete.
 
 ## Environment variables
 
-- `BOT_TOKEN` — Telegram bot token
-- `ADMIN_USER_ID` — allowed Telegram user ID
-- `FERNET_KEY` — Fernet key (`python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`)
-- `DATABASE_PATH` — optional, default `data/bot.db`
-- `LOG_LEVEL` — optional, default `INFO`
+- `BOT_TOKEN`
+- `ADMIN_USER_ID`
+- `FERNET_KEY`
+- `DATABASE_PATH` (default: `data/bot.db`)
+- `LOG_LEVEL` (default: `INFO`)
 
-## Run locally
+## Run local
 
 ```bash
 python -m venv .venv
