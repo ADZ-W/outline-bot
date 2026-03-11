@@ -1,0 +1,9 @@
+services:
+  outline-bot:
+    build: .
+    container_name: outline-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
