@@ -7,13 +7,13 @@ import asyncio
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 
-from bot.config import load_settings
-from bot.handlers import get_root_router
-from bot.logging_config import configure_logging
-from bot.middlewares.admin import AdminOnlyMiddleware
-from bot.services.database import ServerRepository
-from bot.services.encryption import EncryptionService
-from bot.services.outline_service import OutlineService
+from .config import load_settings
+from .handlers import get_root_router
+from .logging_config import configure_logging
+from .middlewares.admin import AdminOnlyMiddleware
+from .services.database import ServerRepository
+from .services.encryption import EncryptionService
+from .services.outline_service import OutlineService
 
 
 async def run() -> None:

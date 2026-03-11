@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from bot.services.database import ServerRepository
-from bot.services.encryption import EncryptionService
-from bot.services.outline_api import OutlineAPI, OutlineAPIError
+from .database import ServerRepository
+from .encryption import EncryptionService
+from .outline_api import OutlineAPI, OutlineAPIError
 
 
 class OutlineService:

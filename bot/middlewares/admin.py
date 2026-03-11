@@ -29,10 +29,10 @@ class AdminOnlyMiddleware(BaseMiddleware):
 
         if user_id != self._admin_user_id:
             if isinstance(event, Message):
-                await event.answer("Access denied.")
+                await event.answer("Доступ запрещён.")
                 return None
             if isinstance(event, CallbackQuery):
-                await event.answer("Access denied.", show_alert=True)
+                await event.answer("Доступ запрещён.", show_alert=True)
                 return None
 
         return await handler(event, data)

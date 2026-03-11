@@ -1,8 +1,8 @@
-"""Access key-related keyboards."""
+"""Клавиатуры раздела ключей."""
 
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-from bot.services.models import OutlineKey
+from ..services.models import OutlineKey
 
 
 def keys_keyboard(server_id: int, keys: list[OutlineKey], page: int, total_pages: int) -> InlineKeyboardMarkup:
@@ -19,18 +19,18 @@ def keys_keyboard(server_id: int, keys: list[OutlineKey], page: int, total_pages
         nav.append(InlineKeyboardButton(text="➡️", callback_data=f"keys:list:{server_id}:{page + 1}"))
 
     rows.append(nav)
-    rows.append([InlineKeyboardButton(text="⬅️ Back", callback_data=f"servers:open:{server_id}")])
+    rows.append([InlineKeyboardButton(text="⬅️ Назад", callback_data=f"servers:open:{server_id}")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def key_menu_keyboard(server_id: int, key_id: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="🔗 Show key", callback_data=f"keys:show:{server_id}:{key_id}")],
-            [InlineKeyboardButton(text="✏️ Rename key", callback_data=f"keys:rename:{server_id}:{key_id}")],
-            [InlineKeyboardButton(text="📉 Set data limit", callback_data=f"keys:set_limit:{server_id}:{key_id}")],
-            [InlineKeyboardButton(text="♻️ Remove data limit", callback_data=f"keys:remove_limit:{server_id}:{key_id}")],
-            [InlineKeyboardButton(text="🗑 Delete key", callback_data=f"keys:delete:{server_id}:{key_id}")],
-            [InlineKeyboardButton(text="⬅️ Back", callback_data=f"keys:list:{server_id}:1")],
+            [InlineKeyboardButton(text="🔗 Показать ключ", callback_data=f"keys:show:{server_id}:{key_id}")],
+            [InlineKeyboardButton(text="✏️ Переименовать ключ", callback_data=f"keys:rename:{server_id}:{key_id}")],
+            [InlineKeyboardButton(text="📉 Установить лимит", callback_data=f"keys:set_limit:{server_id}:{key_id}")],
+            [InlineKeyboardButton(text="♻️ Удалить лимит", callback_data=f"keys:remove_limit:{server_id}:{key_id}")],
+            [InlineKeyboardButton(text="🗑 Удалить ключ", callback_data=f"keys:delete:{server_id}:{key_id}")],
+            [InlineKeyboardButton(text="⬅️ Назад", callback_data=f"keys:list:{server_id}:1")],
         ]
     )

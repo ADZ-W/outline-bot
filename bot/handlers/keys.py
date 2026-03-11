@@ -1,4 +1,4 @@
-"""Access key management handlers."""
+"""Обработчики управления ключами доступа."""
 
 from __future__ import annotations
 
@@ -9,10 +9,10 @@ from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
-from bot.keyboards import key_menu_keyboard, keys_keyboard
-from bot.services.outline_api import OutlineAPIError
-from bot.services.outline_service import OutlineService
-from bot.utils.formatting import format_bytes
+from ..keyboards import key_menu_keyboard, keys_keyboard
+from ..services.outline_api import OutlineAPIError
+from ..services.outline_service import OutlineService
+from ..utils.formatting import format_bytes
 
 from .states import KeyStates
 
@@ -30,7 +30,7 @@ async def create_key(call: CallbackQuery, outline: OutlineService) -> None:
         return
 
     logger.info("key created server_id=%s key_id=%s", server_id, key.id)
-    await call.message.answer(f"Created key {key.id}")
+    await call.message.answer(f"Ключ создан: {key.id}")
     await call.answer()
 
 
@@ -52,7 +52,7 @@ async def list_keys(call: CallbackQuery, outline: OutlineService) -> None:
     paged_keys = keys[start : start + per_page]
 
     await call.message.edit_text(
-        f"Access keys ({len(keys)} total)",
+        f"Ключи доступа (всего: {len(keys)})",
         reply_markup=keys_keyboard(server_id=server_id, keys=paged_keys, page=page, total_pages=total_pages),
     )
     await call.answer()
@@ -70,10 +70,10 @@ async def open_key(call: CallbackQuery, outline: OutlineService) -> None:
         return
 
     text = (
-        f"Name: {key.name}\n"
+        f"Имя: {key.name}\n"
         f"ID: {key.id}\n"
-        f"Data used: {format_bytes(key.used_bytes)}\n"
-        f"Data limit: {format_bytes(key.data_limit_bytes)}"
+        f"Использовано: {format_bytes(key.used_bytes)}\n"
+        f"Лимит: {format_bytes(key.data_limit_bytes)}"
     )
     await call.message.edit_text(text, reply_markup=key_menu_keyboard(server_id, key_id))
     await call.answer()
@@ -90,7 +90,7 @@ async def show_key(call: CallbackQuery, outline: OutlineService) -> None:
         await call.answer(str(exc), show_alert=True)
         return
 
-    await call.message.answer(f"Access URL:\n{key.access_url}")
+    await call.message.answer(f"Ссылка ключа:\n{key.access_url}")
     await call.answer()
 
 
@@ -99,7 +99,7 @@ async def rename_key_start(call: CallbackQuery, state: FSMContext) -> None:
     _, _, server_id_s, key_id = call.data.split(":")
     await state.set_state(KeyStates.renaming)
     await state.update_data(server_id=int(server_id_s), key_id=key_id)
-    await call.message.answer("Send new key name:")
+    await call.message.answer("Введите новое имя ключа:")
     await call.answer()
 
 
@@ -116,7 +116,7 @@ async def rename_key_finish(message: Message, state: FSMContext, outline: Outlin
         return
 
     await state.clear()
-    await message.answer("Key renamed.")
+    await message.answer("Ключ переименован.")
 
 
 @router.callback_query(F.data.startswith("keys:set_limit:"))
@@ -124,7 +124,7 @@ async def set_limit_start(call: CallbackQuery, state: FSMContext) -> None:
     _, _, server_id_s, key_id = call.data.split(":")
     await state.set_state(KeyStates.setting_limit)
     await state.update_data(server_id=int(server_id_s), key_id=key_id)
-    await call.message.answer("Send data limit in GB (positive integer):")
+    await call.message.answer("Введите лимит в ГБ (положительное целое):")
     await call.answer()
 
 
@@ -135,7 +135,7 @@ async def set_limit_finish(message: Message, state: FSMContext, outline: Outline
         if limit_gb <= 0:
             raise ValueError
     except ValueError:
-        await message.answer("Please send a positive integer value (GB).")
+        await message.answer("Введите положительное целое число (ГБ).")
         return
 
     data = await state.get_data()
@@ -151,7 +151,7 @@ async def set_limit_finish(message: Message, state: FSMContext, outline: Outline
 
     logger.info("limit changed server_id=%s key_id=%s bytes=%s", server_id, key_id, bytes_limit)
     await state.clear()
-    await message.answer("Data limit updated.")
+    await message.answer("Лимит обновлён (глобально для сервера Outline).")
 
 
 @router.callback_query(F.data.startswith("keys:remove_limit:"))
@@ -166,7 +166,7 @@ async def remove_limit(call: CallbackQuery, outline: OutlineService) -> None:
         return
 
     logger.info("limit changed server_id=%s key_id=%s removed=true", server_id, key_id)
-    await call.message.answer("Data limit removed.")
+    await call.message.answer("Лимит удалён (глобально для сервера Outline).")
     await call.answer()
 
 
@@ -182,5 +182,5 @@ async def delete_key(call: CallbackQuery, outline: OutlineService) -> None:
         return
 
     logger.info("key deleted server_id=%s key_id=%s", server_id, key_id)
-    await call.message.answer("Key deleted.")
+    await call.message.answer("Ключ удалён.")
     await call.answer()

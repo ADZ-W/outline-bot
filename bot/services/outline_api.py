@@ -1,4 +1,4 @@
-"""HTTP client for Outline Access Keys Management API."""
+"""HTTP-клиент для Outline Access Keys API (apiUrl из access.txt/Manager)."""
 
 from __future__ import annotations
 
@@ -12,20 +12,22 @@ from .models import OutlineKey
 
 
 class OutlineAPIError(RuntimeError):
-    """Raised when Outline API call fails."""
+    """Ошибка вызова Outline API."""
 
 
 class OutlineAPI:
-    """Outline API client with retries and typed methods.
+    """Клиент для запросов к Outline Shadowbox API.
 
-    Expected secret URL format from Outline Manager:
-    `https://<api_key>@<host>:<port>/<cert-sha256>`
+    Принимает `apiUrl` формата: `https://host:port/UNIQUE_TOKEN`.
+    Авторизация отдельно не требуется, секретом является сам apiUrl.
     """
 
-    def __init__(self, api_url: str, timeout: int = 15) -> None:
+    def __init__(self, api_url: str, timeout: int = 15, verify_ssl: bool = False) -> None:
         self.api_url = api_url.rstrip("/")
         self.timeout = timeout
+        self.verify_ssl = verify_ssl
         self.session = requests.Session()
+
         retries = Retry(
             total=3,
             connect=3,
@@ -41,10 +43,16 @@ class OutlineAPI:
     def _request(self, method: str, path: str, **kwargs: Any) -> dict[str, Any]:
         url = f"{self.api_url}{path}"
         try:
-            response = self.session.request(method=method, url=url, timeout=self.timeout, **kwargs)
+            response = self.session.request(
+                method=method,
+                url=url,
+                timeout=self.timeout,
+                verify=self.verify_ssl,
+                **kwargs,
+            )
             response.raise_for_status()
         except requests.RequestException as exc:
-            raise OutlineAPIError(f"Outline API request failed: {exc}") from exc
+            raise OutlineAPIError(f"Ошибка запроса к Outline API: {exc}") from exc
 
         if not response.content:
             return {}
@@ -52,10 +60,10 @@ class OutlineAPI:
         try:
             return response.json()
         except ValueError as exc:
-            raise OutlineAPIError("Outline API returned invalid JSON") from exc
+            raise OutlineAPIError("Outline API вернул невалидный JSON") from exc
 
     def list_keys(self) -> list[OutlineKey]:
-        payload = self._request("GET", "/access-keys")
+        payload = self._request("GET", "/access-keys/")
         keys_payload = payload.get("accessKeys", [])
         return [OutlineKey.from_api(item) for item in keys_payload]
 
@@ -67,24 +75,20 @@ class OutlineAPI:
             key.name = name
         return key
 
+    def get_key_info(self, key_id: str) -> OutlineKey:
+        payload = self._request("GET", f"/access-keys/{key_id}")
+        return OutlineKey.from_api(payload)
+
+    def rename_key(self, key_id: str, name: str) -> None:
+        self._request("PUT", f"/access-keys/{key_id}/name", data={"name": name})
+
     def delete_key(self, key_id: str) -> None:
         self._request("DELETE", f"/access-keys/{key_id}")
 
-    def rename_key(self, key_id: str, name: str) -> None:
-        self._request("PUT", f"/access-keys/{key_id}/name", json={"name": name})
-
     def set_data_limit(self, key_id: str, bytes_limit: int) -> None:
-        self._request(
-            "PUT",
-            f"/access-keys/{key_id}/data-limit",
-            json={"limit": {"bytes": bytes_limit}},
-        )
+        _ = key_id
+        self._request("PUT", "/server/access-key-data-limit", json={"limit": {"bytes": bytes_limit}})
 
     def remove_data_limit(self, key_id: str) -> None:
-        self._request("DELETE", f"/access-keys/{key_id}/data-limit")
-
-    def get_key_info(self, key_id: str) -> OutlineKey:
-        for key in self.list_keys():
-            if key.id == str(key_id):
-                return key
-        raise OutlineAPIError(f"Access key {key_id} not found")
+        _ = key_id
+        self._request("DELETE", "/server/access-key-data-limit")

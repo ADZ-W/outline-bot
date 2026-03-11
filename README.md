@@ -1,89 +1,79 @@
 # Outline Bot
 
-Telegram-бот для управления несколькими Outline VPN серверами (single-admin).
+Telegram-бот для управления Outline VPN серверами и ключами доступа (только один администратор).
 
-## 1) Архитектура проекта
+## Архитектура
 
 ```text
 bot/
-  main.py                    # entrypoint, DI, middleware, polling
-  config.py                  # env-конфиг
-  logging_config.py          # logging
+  main.py
+  config.py
+  logging_config.py
   handlers/
-    __init__.py              # сборка root router
-    common.py                # /start, main, noop
-    servers.py               # сценарии управления серверами
-    keys.py                  # сценарии управления ключами
-    states.py                # FSM состояния
+    __init__.py
+    common.py
+    servers.py
+    keys.py
+    states.py
   keyboards/
-    main_menu.py             # главное меню
-    servers.py               # меню серверов
-    keys.py                  # меню ключей
+    main_menu.py
+    servers.py
+    keys.py
   middlewares/
-    admin.py                 # single-admin guard
+    admin.py
   services/
-    database.py              # SQLite repository
-    encryption.py            # Fernet encryption service
-    outline_api.py           # Outline Access Keys Management API client
-    outline_service.py       # получение клиента по server_id
-    models.py                # dataclasses
+    database.py
+    encryption.py
+    outline_api.py
+    outline_service.py
+    models.py
   utils/
-    formatting.py            # форматирование байт
+    formatting.py
 ```
 
-## 2) Database model
+## Outline API (как использовать)
 
-Таблица `servers`:
-- `id INTEGER PRIMARY KEY AUTOINCREMENT`
-- `name TEXT NOT NULL`
-- `api_url TEXT NOT NULL`
-- `api_secret_encrypted TEXT NOT NULL`
-- `created_at TEXT NOT NULL`
+Используется `apiUrl` из `access.txt` или Outline Manager, например:
 
-## 3) Outline API client (официальный Access Keys Management API)
+```json
+{"apiUrl":"https://1.2.3.4:1234/UNIQUE_TOKEN"}
+```
 
-Источник: официальная документация Outline Shadowbox Access Keys API:
-- `/access-keys` (GET/POST)
-- `/access-keys/{id}` (DELETE)
-- `/access-keys/{id}/name` (PUT)
-- `/access-keys/{id}/data-limit` (PUT/DELETE)
+Важно: отдельная авторизация не нужна, секретом является сам `apiUrl`.
 
-Реализованные методы:
-- `list_keys()`
-- `create_key()`
-- `delete_key()`
-- `rename_key()`
-- `set_data_limit()`
-- `remove_data_limit()`
-- `get_key_info()`
+В коде используются endpoint'ы:
+- `GET /access-keys/`
+- `POST /access-keys`
+- `GET /access-keys/{id}`
+- `PUT /access-keys/{id}/name` (form-data `name`)
+- `DELETE /access-keys/{id}`
+- `PUT /server/access-key-data-limit`
+- `DELETE /server/access-key-data-limit`
 
-## 4) Telegram handlers
+## База данных
 
-- Полный inline UI.
-- FSM для multi-step действий.
-- Single-admin доступ через middleware и `ADMIN_USER_ID`.
-- Управление серверами: list/add/rename/delete.
-- Управление ключами: create/list (pagination 10)/open/show/rename/set-limit/remove-limit/delete.
+SQLite таблица `servers`:
+- `id`
+- `name`
+- `api_url`
+- `api_secret_encrypted`
+- `created_at`
 
-## Environment variables
+## Переменные окружения
 
 - `BOT_TOKEN`
 - `ADMIN_USER_ID`
 - `FERNET_KEY`
-- `DATABASE_PATH` (default: `data/bot.db`)
-- `LOG_LEVEL` (default: `INFO`)
+- `DATABASE_PATH` (по умолчанию `data/bot.db`)
+- `LOG_LEVEL` (по умолчанию `INFO`)
 
-## Run local
+## Локальный запуск (для отладки на ПК)
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+cp .env.example .env
+# заполните .env
 python -m bot.main
-```
-
-## Docker
-
-```bash
-docker compose up --build -d
 ```
